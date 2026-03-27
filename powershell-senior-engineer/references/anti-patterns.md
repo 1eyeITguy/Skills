@@ -5,6 +5,48 @@ Reject them in all generated and reviewed code.
 
 ---
 
+## Character Encoding — ALWAYS ASCII-Safe Output
+
+**This is a hard rule, no exceptions.**
+
+AI tools generate text that contains Unicode punctuation (em dashes `—`, smart quotes
+`"` `"` `'` `'`, ellipsis `…`, etc.).  These characters are multi-byte UTF-8 sequences.
+When a file is copied between machines, editors, or terminals that use different code
+pages (common in enterprise environments running Windows PowerShell 5.1), those bytes
+are misinterpreted and produce garbage like `â€"` — which breaks parsing.
+
+```powershell
+# WRONG — Unicode punctuation that looks fine in the editor but breaks on copy/transfer
+Write-Output "Cleaning temp files — this may take a moment..."
+if ($PSCmdlet.ShouldProcess("$label — $sizeDisplay", 'Clear')) { ... }
+
+# WRONG — smart apostrophe in comments or strings
+# Clears the user's temp folder
+
+# RIGHT — plain ASCII only, everywhere
+Write-Output "Cleaning temp files - this may take a moment..."
+if ($PSCmdlet.ShouldProcess("$label - $sizeDisplay", 'Clear')) { ... }
+
+# RIGHT — straight apostrophe
+# Clears the user's temp folder
+```
+
+**Characters to NEVER use in generated .ps1 files:**
+
+| Character | Unicode | Replace with |
+|---|---|---|
+| Em dash `—` | U+2014 | Hyphen-minus `-` |
+| En dash `–` | U+2013 | Hyphen-minus `-` |
+| Smart quote `"` `"` | U+201C / U+201D | Straight double quote `"` |
+| Smart apostrophe `'` `'` | U+2018 / U+2019 | Straight single quote `'` |
+| Ellipsis `…` | U+2026 | Three dots `...` |
+| Non-breaking space | U+00A0 | Regular space |
+
+**Save all generated .ps1 files as UTF-8 without BOM.**
+UTF-8 with BOM and ANSI both cause problems on PS 5.1 in mixed environments.
+
+---
+
 ## Version and Compatibility
 
 ```powershell
@@ -31,6 +73,39 @@ $items | ? { $_.Enabled }
 # RIGHT — always use full cmdlet names in scripts
 $users | ForEach-Object { $_.DisplayName }
 $items | Where-Object { $_.Enabled }
+```
+
+```powershell
+# WRONG — Set-StrictMode -Version Latest throws when Measure-Object receives no
+#         pipeline input and returns $null; accessing .Sum on $null is a property
+#         error under strict mode even though you check for $null on the next line.
+Set-StrictMode -Version Latest
+$sum = (Get-ChildItem $path -File -Recurse -ErrorAction SilentlyContinue |
+    Measure-Object -Property Length -Sum).Sum    # THROWS if directory is empty
+if ($null -eq $sum) { return 0 }
+
+# RIGHT — assign to an intermediate variable, then inspect the object before
+#         touching any of its properties.
+$measured = Get-ChildItem $path -File -Recurse -ErrorAction SilentlyContinue |
+    Measure-Object -Property Length -Sum
+if ($null -eq $measured -or $null -eq $measured.Sum) { return [long]0 }
+return [long]$measured.Sum
+```
+
+```powershell
+# WRONG — [ordered]@{} creates System.Collections.Specialized.OrderedDictionary
+#         which is a non-generic IDictionary.  It does NOT have .ContainsKey().
+#         This throws on PS 5.1 at runtime even though it looks correct.
+$map = [ordered]@{ Foo = 1; Bar = 2 }
+if ($map.ContainsKey('Foo')) { ... }   # MethodNotFound exception on PS 5.1
+
+# RIGHT — OrderedDictionary uses .Contains()
+if ($map.Contains('Foo')) { ... }
+
+# NOTE — plain @{} (Hashtable) DOES have .ContainsKey(); the rule only applies
+#         to [ordered]@{} / OrderedDictionary.
+$ht = @{ Foo = 1 }
+if ($ht.ContainsKey('Foo')) { ... }    # Fine on both PS 5.1 and PS 7
 ```
 
 ---
