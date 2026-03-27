@@ -5,33 +5,30 @@ Reject them in all generated and reviewed code.
 
 ---
 
-## Character Encoding — ALWAYS ASCII-Safe Output
+## Character Encoding — ASCII-Safe Output for PS 5.1 Scripts
 
-**This is a hard rule, no exceptions.**
+**This rule applies to any script that targets or must run on Windows PowerShell 5.1.**
+PS 7 reads files as UTF-8 by default and handles Unicode characters correctly, so this
+rule does NOT apply to PS 7-only scripts as long as the file is saved as UTF-8.
 
-AI tools generate text that contains Unicode punctuation (em dashes `—`, smart quotes
-`"` `"` `'` `'`, ellipsis `…`, etc.).  These characters are multi-byte UTF-8 sequences.
-When a file is copied between machines, editors, or terminals that use different code
-pages (common in enterprise environments running Windows PowerShell 5.1), those bytes
-are misinterpreted and produce garbage like `â€"` — which breaks parsing.
+**Why it matters for PS 5.1:**
+PS 5.1 defaults to the system code page (Windows-1252 / ANSI on English Windows) when
+reading a file with no BOM.  AI tools generate UTF-8 text containing Unicode punctuation
+(em dashes `—`, smart quotes `"` `"` `'` `'`, ellipsis `…`, etc.).  When that file is
+copied between machines or editors without preserving encoding, those multi-byte sequences
+are misread as Windows-1252 and produce garbage like `a EUR"` — which breaks parsing.
 
 ```powershell
-# WRONG — Unicode punctuation that looks fine in the editor but breaks on copy/transfer
+# WRONG for PS 5.1 — Unicode punctuation breaks after copy/transfer in enterprise envs
 Write-Output "Cleaning temp files — this may take a moment..."
 if ($PSCmdlet.ShouldProcess("$label — $sizeDisplay", 'Clear')) { ... }
 
-# WRONG — smart apostrophe in comments or strings
-# Clears the user's temp folder
-
-# RIGHT — plain ASCII only, everywhere
+# RIGHT for PS 5.1 — plain ASCII only
 Write-Output "Cleaning temp files - this may take a moment..."
 if ($PSCmdlet.ShouldProcess("$label - $sizeDisplay", 'Clear')) { ... }
-
-# RIGHT — straight apostrophe
-# Clears the user's temp folder
 ```
 
-**Characters to NEVER use in generated .ps1 files:**
+**Characters to avoid in PS 5.1 .ps1 files:**
 
 | Character | Unicode | Replace with |
 |---|---|---|
@@ -42,8 +39,9 @@ if ($PSCmdlet.ShouldProcess("$label - $sizeDisplay", 'Clear')) { ... }
 | Ellipsis `…` | U+2026 | Three dots `...` |
 | Non-breaking space | U+00A0 | Regular space |
 
-**Save all generated .ps1 files as UTF-8 without BOM.**
-UTF-8 with BOM and ANSI both cause problems on PS 5.1 in mixed environments.
+**Save PS 5.1 scripts as UTF-8 without BOM** (or ASCII).
+UTF-8 with BOM causes issues on older PS 5.1 builds; ANSI mangles anything above U+007F.
+PS 7 scripts: save as UTF-8 (with or without BOM — both work).
 
 ---
 

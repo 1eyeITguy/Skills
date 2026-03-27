@@ -20,10 +20,11 @@
 
 - Prefix internal/helper functions with a project noun (`IRIS-`, `SS-`, `MSP-`, etc.)
   to avoid namespace collisions.
-- **Use ASCII-only characters in all .ps1 files.** Never use Unicode punctuation
-  (em dashes, smart quotes, ellipsis, non-breaking spaces, etc.) — they cause parse
-  failures on PS 5.1 when files are copied or re-encoded.  Use `-` not `—`, `'` not
-  `'`, `"` not `"`.  Save files as **UTF-8 without BOM**.
+- **PS 5.1 scripts: use ASCII-only characters.** Never use Unicode punctuation
+  (em dashes, smart quotes, ellipsis, non-breaking spaces) — they cause parse failures
+  when files are copied or re-encoded on systems using Windows code pages.  Use `-` not
+  `—`, straight quotes only.  Save as **UTF-8 without BOM**.
+  PS 7 scripts: UTF-8 Unicode is fine; save as UTF-8.
 
 ---
 
